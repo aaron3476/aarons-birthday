@@ -567,8 +567,49 @@ popupOverlay.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closePopup();
 });
+// ---- little "woof" sound for the welcome popup (synthesized, no audio file needed) ----
+function playWoofSound(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    function woof(startTime, peakFreq, endFreq, peakGain, duration){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1400;
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(peakFreq * 0.75, startTime);
+      osc.frequency.linearRampToValueAtTime(peakFreq, startTime + 0.035);
+      osc.frequency.exponentialRampToValueAtTime(endFreq, startTime + duration);
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration + 0.04);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.04);
+    }
+
+    const now = audioCtx.currentTime;
+    woof(now, 320, 210, 0.22, 0.16);
+    woof(now + 0.24, 340, 220, 0.18, 0.14);
+  } catch(e){
+    // audio not available, fail silently
+  }
+}
+
 window.addEventListener('load', () => {
-  setTimeout(() => popupOverlay.classList.add('show'), 350);
+  setTimeout(() => {
+    popupOverlay.classList.add('show');
+    playWoofSound();
+  }, 350);
 });
 
 // ---- confetti + jakey burst ----
@@ -640,7 +681,63 @@ function animateConfetti(){
 }
 animateConfetti();
 
-document.getElementById('horn-btn').addEventListener('click', burstConfetti);
+// ---- little party sound effect (synthesized, no audio file needed) ----
+let audioCtx;
+function playPartySound(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+
+    // a soft little "poof" for the burst itself
+    function poof(startTime){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(360, startTime);
+      osc.frequency.exponentialRampToValueAtTime(180, startTime + 0.16);
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.16, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.22);
+    }
+
+    // gentle high sparkle notes scattering after, like little twinkles
+    function sparkle(startTime, freq){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.08, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.3);
+    }
+
+    poof(now);
+
+    const sparkleNotes = [1046.5, 1318.5, 1568.0, 1760.0, 2093.0]; // C6, E6, G6, A6, C7
+    for (let i = 0; i < 6; i++){
+      const t = now + 0.08 + Math.random() * 0.45;
+      const freq = sparkleNotes[Math.floor(Math.random() * sparkleNotes.length)];
+      sparkle(t, freq);
+    }
+  } catch(e){
+    // audio not available, fail silently
+  }
+}
+
+document.getElementById('horn-btn').addEventListener('click', () => {
+  burstConfetti();
+  playPartySound();
+});
 </script>
 
 </body>
